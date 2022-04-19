@@ -1,7 +1,6 @@
 import scraper
 import utils
 import pandas as pd
-from db_initialize import conn
 from datetime import timedelta
 
 
@@ -51,10 +50,6 @@ def f_get_monthly_settlement_price(month):
     return daily_da_lmp
 
 #load the auction result
-auction_result = scraper.get_ftr_auction_result()
-
-daily_da_lmp.to_sql('IsoneDailyDaLmp',con = conn, index = False, if_exists = 'append')
-auction_result.to_sql('FtrAuctionResult',con = conn, index = False, if_exists = 'append')
 
 #1. calculate the mar22 Pnl
 def f_calculate_monthly_ftr_settlement_pnl(month,conn):
@@ -100,23 +95,20 @@ def f_calculate_monthly_ftr_settlement_pnl(month,conn):
 
     return output
 
-#aggregate
-pnl_by_company = mar_result[['Customer Name','Pnl']].groupby('Customer Name').sum().reset_index()
+
 
 #2. calculate the Mar22 MtA (Mark to Auction) pnl
 def f_calculate_monthly_ftr_mta_pnl(month,conn):
     '''
     The function calculates the mta pnl with one auction
-    :param month: The input month of an auction, need to be in 'year_yyyy' or 'month_yyyymm' format
+    :param month: The input month of an auction, need to be in 'long_term_yyyy' or 'monthly_yyyymm' format
     :param conn: The connection to the database
     :return: A dataframe with the detailed Pnl info
     '''
 
     query = '''
     with t_new_auction as
-    (select * from FtrAuctionResult where FileName = '%s'),
-    t_updatetime as
-    (select max(updatetime) as max_updatetime from t_new_auction)
+    (select * from FtrAuctionResult where FileName = '%s')
     select 
         a.*,
         d."Hours" as "Hours",
@@ -147,15 +139,5 @@ def f_calculate_monthly_ftr_mta_pnl(month,conn):
 
     return output
 
-query = '''
-    with t_new_auction as
-    (select * from FtrAuctionResult where FileName = 'month_202204'),
-    t_updatetime as
-    (select max(updatetime) as max_updatetime from t_new_auction)
-    select * from FtrAuctionResult a where a.updatetime < (select * from t_updatetime)
-    '''
-df2 = f_calculate_monthly_ftr_mta_pnl('month_202204',conn)
 
-
-pnl_by_company = apr_result[['Customer Name','Pnl']].groupby('Customer Name').sum().reset_index()
 
