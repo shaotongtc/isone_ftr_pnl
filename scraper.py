@@ -15,11 +15,11 @@ def get_isone_hourly_dalmp(report_date):
     '''
     price_file_link = 'https://www.iso-ne.com/static-transform/csv/histRpts/da-lmp/WW_DALMP_ISO_' + report_date.strftime('%Y%m%d') + '.csv'
     print(price_file_link)
-    response = requests.get(price_file_link)
+    response = requests.get(price_file_link) #request the link
     df = pd.read_csv(BytesIO(response.content),skiprows=4)
-    df = df[df.iloc[:, 0] != 'T']
+    df = df[df.iloc[:, 0] != 'T'] #reorganize the data
     df = df.iloc[1:,1:]
-    df['Update Time'] = datetime.now()
+    df['Update Time'] = datetime.now() #add the updatetime column
     df.dropna(inplace = True)
     print(df.shape)
     return df
@@ -40,12 +40,12 @@ def get_ftr_auction_result():
     response = s.get(url_link)
     print('Processing the page.')
     tree = HTML(response.text)
-    link_list = tree.xpath('//*[@class = "csvlink"]/@href')
-    update_time_list = tree.xpath('//*[@class = "col-3"]/text()')[1:]
-    file_idx = [i for i in range(len(link_list)) if bool(re.search('result', link_list[i]))]
-    link_list = [root_url + link_list[i] for i in file_idx]
-    update_time_list = [update_time_list[i] for i in file_idx]
-    download_info = pd.DataFrame(list(zip(link_list,update_time_list)),columns = ['Link','UpdateTime'])
+    link_list = tree.xpath('//*[@class = "csvlink"]/@href') #use xpath to find all links
+    update_time_list = tree.xpath('//*[@class = "col-3"]/text()')[1:] #use xpath to find all update times
+    file_idx = [i for i in range(len(link_list)) if bool(re.search('result', link_list[i]))] #filter the auction result records using regex
+    link_list = [root_url + link_list[i] for i in file_idx] #create the full download link
+    update_time_list = [update_time_list[i] for i in file_idx] #use the same index to filter the update times
+    download_info = pd.DataFrame(list(zip(link_list,update_time_list)),columns = ['Link','UpdateTime']) #combine the link list and update time list to
     download_info.drop_duplicates(inplace=True)
 
     print('CSV download list created.')
@@ -60,13 +60,13 @@ def get_ftr_auction_result():
         df = pd.read_csv(BytesIO(response.content),skiprows=4)
         df = df[df.iloc[:,0] != 'T']
         df = df.iloc[1:,1:]
-        file_type = re.search('&(.*)=',link).group(1)
+        file_type = re.search('type=(.*)&',link).group(1)
         file_date = link.split("=")[-1]
         df['FileName'] = file_type + '_' + file_date
         df['TimeStamp'] = update_time
         df['UpdateTime'] = datetime.now()
         print(df.shape,file_type,file_date)
-        if file_type == 'month':
+        if file_type == 'monthly':
             df['Month'] = df['Auction Name'].apply(get_auction_month)
         else:
             date_range = list(pd.date_range(date(int(file_date),1,1),date(int(file_date) + 1,1,1),freq='1M'))
