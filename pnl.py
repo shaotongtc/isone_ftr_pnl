@@ -12,11 +12,13 @@ def f_get_monthly_settlement_price(month):
     date_end = (month + timedelta(days = 32)).replace(day = 1) + timedelta(days = -1)
     date_list = pd.date_range(date_start,date_end)
 
+    print("Scraping Data...")
     for input_date in date_list:
         da_lmp = scraper.get_isone_hourly_dalmp(input_date)
         hourly_da_lmp = hourly_da_lmp.append(da_lmp)
 
-    #reformat the table
+    print("Formatting the table...")
+    #Formatting the table
     hourly_da_lmp['Date'] = pd.to_datetime(hourly_da_lmp['Date'])
     hourly_da_lmp['Hour Ending'] = pd.to_numeric(hourly_da_lmp['Hour Ending'])
     hourly_da_lmp['Locational Marginal Price'] = pd.to_numeric(hourly_da_lmp['Locational Marginal Price'])
@@ -60,36 +62,43 @@ def f_calculate_monthly_ftr_settlement_pnl(month,conn):
     :return: A dataframe with the detailed Pnl info
     '''
     query = '''
-    select 
-        a.*,
-        b.date,
-        b."Congestion Component" as Congestion_Source,
-        c."Congestion Component" as Congestion_Sink,
-        c."Congestion Component" - b."Congestion Component"  as End_Price,
-        d."Hours" as "Hours",
-        (d."Hours" * ((c."Congestion Component" - b."Congestion Component") - a."Award FTR Price")) * a."Award FTR MW" *
-        (case when 
-        a."Buy/Sell" = 'BUY' 
-        then 1
-        else -1 
-        end)as Pnl
-    from 
-        FtrAuctionResult a
-    join
-        DailyHours d
-    on
-        d.ClassType = a.ClassType and d.Month = a.Month
-    join
-        IsoneDailyDaLmp b
-    on
-        a."Source Location ID" = b."Location ID" and a."ClassType" = b."ClassType" and b.Date = d.Date
-    join
-        IsoneDailyDaLmp c
-    on
-        a."Sink Location ID" = c."Location ID" and a."ClassType" = c."ClassType" and c.Date = b.Date
-    where 
-        a."Month" = '%s'
-    ''' % month
+        select 
+            a.*,
+            b.date,
+            b."Congestion Component" as Congestion_Source,
+            c."Congestion Component" as Congestion_Sink,
+            c."Congestion Component" - b."Congestion Component"  as End_Price,
+            d."Hours" as "Hours",
+            d."Hours" *
+            (
+                (c."Congestion Component" - b."Congestion Component") - 
+                (a."Award FTR Price" / (case when a.FileName like 'long_term%%' then e.HoursYear else e.Hours end))
+            ) * 
+            a."Award FTR MW" *
+            (
+                case when a."Buy/Sell" = 'BUY' then 1 else -1 end
+            ) as Pnl
+        from 
+            FtrAuctionResult a
+        join
+            DailyHours d
+        on
+            d.ClassType = a.ClassType and d.Month = a.Month
+        join
+            MonthlyHours e
+        on
+            e.Month = d.Month and e.ClassType = a.ClassType 
+        join
+            IsoneDailyDaLmp b
+        on
+            a."Source Location ID" = b."Location ID" and a."ClassType" = b."ClassType" and b.Date = d.Date
+        join
+            IsoneDailyDaLmp c
+        on
+            a."Sink Location ID" = c."Location ID" and a."ClassType" = c."ClassType" and c.Date = b.Date
+        where 
+            a."Month" = '%s'
+        ''' % month
 
     output = pd.read_sql(query,con = conn)
 
@@ -105,19 +114,26 @@ def f_calculate_monthly_ftr_mta_pnl(month,conn):
     :param conn: The connection to the database
     :return: A dataframe with the detailed Pnl info
     '''
-
     query = '''
     with t_new_auction as
-    (select * from FtrAuctionResult where FileName = '%s')
+    (
+        select distinct 
+            Month,
+            "Award FTR Price",
+            "Source Location ID",
+            "Sink Location ID",
+            ClassType
+        from 
+            FtrAuctionResult 
+        where 
+            FileName = '%s'
+    )
     select 
         a.*,
-        d."Hours" as "Hours",
-        (d."Hours" * (b."Award FTR Price" - a."Award FTR Price")) * a."Award FTR MW" *
-        (case when 
-        a."Buy/Sell" = 'BUY' 
-        then 1
-        else -1 
-        end)as Pnl
+        b.Month as new_month,
+        b."Award FTR Price" as new_price,
+        (b."Award FTR Price"  - a."Award FTR Price" * d.Hours / d.HoursYear) * a."Award FTR MW" *
+        (case when a."Buy/Sell" = 'BUY' then 1 else -1 end) as Pnl
     from 
         FtrAuctionResult a
     join
