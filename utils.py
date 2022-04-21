@@ -19,45 +19,14 @@ def pk_offpk(input_date,input_hour_ending):
     else:
         return 'OFFPEAK'
 
-def get_position_start_end_date(row):
-    auction_name = row[0]
-    year = auction_name.split(' ')[1]
-    if auction_name.split(' ')[0] in ('LT1','LT2'):
-        month_start = 'JAN'
-        month_end = 'DEC'
-    else:
-        month_start = auction_name.split(' ')[-1]
-        month_end = auction_name.split(' ')[-1]
-    auction_month_start = pd.to_datetime(year + '-' + month_start + '-01').date()
-    auction_month_end = pd.to_datetime(year + '-' + month_end + '-01').date()
-    return pd.Series([auction_month_start,auction_month_end])
-
-def get_position_start_end_date(row):
-    auction_name = row[0]
-    year = auction_name.split(' ')[1]
-    if auction_name.split(' ')[0] in ('LT1','LT2'):
-        month_start = 'JAN'
-        month_end = 'DEC'
-    else:
-        month_start = auction_name.split(' ')[-1]
-        month_end = auction_name.split(' ')[-1]
-    auction_month_start = pd.to_datetime(year + '-' + month_start + '-01').date()
-    auction_month_end = pd.to_datetime(year + '-' + month_end + '-01').date()
-    return pd.Series([auction_month_start,auction_month_end])
-
 def get_auction_month(auction_name):
+    '''
+    The function get the auction month based on the values in auction_name column
+    :param auction_name: the values in auction_name column in the FTR auction result
+    :return: the month of the contract i.e APR 2022 MAY -> 2022-05-01
+    '''
     year = auction_name.split(' ')[1]
     month_start = auction_name.split(' ')[-1]
     auction_month = pd.to_datetime(year + '-' + month_start + '-01').date()
     return auction_month
-
-def get_position_month(file_type,df):
-    if file_type == 'monthly':
-        df['Month'] = df['Auction Name'].apply(get_auction_month)
-    else:
-        x = list(pd.date_range(date(2022, 1, 1), date(2023, 1, 1), freq='1M'))
-
-        y = pd.DataFrame([i.replace(day=1).date() for i in x], columns=['Date'])
-
-        z = data.merge(y, how='cross')
 

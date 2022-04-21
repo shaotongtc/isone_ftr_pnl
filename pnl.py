@@ -69,7 +69,7 @@ def f_calculate_monthly_ftr_settlement_pnl(month,conn):
             c."Congestion Component" as Congestion_Sink,
             c."Congestion Component" - b."Congestion Component"  as End_Price,
             d."Hours" as "Hours",
-            d."Hours" *
+            coalesce(d."Hours" *
             (
                 (c."Congestion Component" - b."Congestion Component") - 
                 (a."Award FTR Price" / (case when a.FileName like 'long_term%%' then e.HoursYear else e.Hours end))
@@ -77,22 +77,22 @@ def f_calculate_monthly_ftr_settlement_pnl(month,conn):
             a."Award FTR MW" *
             (
                 case when a."Buy/Sell" = 'BUY' then 1 else -1 end
-            ) as Pnl
+            ),0) as Pnl
         from 
             FtrAuctionResult a
-        join
+        left join
             DailyHours d
         on
             d.ClassType = a.ClassType and d.Month = a.Month
-        join
+        left join
             MonthlyHours e
         on
             e.Month = d.Month and e.ClassType = a.ClassType 
-        join
+        left join
             IsoneDailyDaLmp b
         on
             a."Source Location ID" = b."Location ID" and a."ClassType" = b."ClassType" and b.Date = d.Date
-        join
+        left join
             IsoneDailyDaLmp c
         on
             a."Sink Location ID" = c."Location ID" and a."ClassType" = c."ClassType" and c.Date = b.Date
