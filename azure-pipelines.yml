@@ -44,3 +44,9 @@ steps:
 - script:
     pip install twine
   displayName: 'install twine'
+
+- task: PublishBuildArtifacts@1
+  inputs:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+    ArtifactName: 'drop'
+    publishLocation: 'Container'
