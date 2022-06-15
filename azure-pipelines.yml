@@ -10,8 +10,6 @@ pool:
   vmImage: ubuntu-latest
 strategy:
   matrix:
-    Python36:
-      python.version: '3.6'
     Python37:
       python.version: '3.7'
     Python38:
@@ -23,6 +21,11 @@ steps:
     versionSpec: '$(python.version)'
   displayName: 'Use Python $(python.version)'
 
+- task: PipAuthenticate@1
+  inputs:
+    artifactFeeds: 'artifat_test'
+    onlyAddExtraIndex: true
+
 - script: |
     python -m pip install --upgrade pip
     pip install -r requirements.txt
@@ -32,3 +35,12 @@ steps:
     pip install pytest pytest-azurepipelines
     pytest test.py
   displayName: 'pytest'
+
+- script: |
+    pip install wheel
+    python setup.py bdist_wheel --dist-dir $(Build.ArtifactStagingDirectory)
+  displayName: 'build'
+
+- script:
+    pip install twine
+  displayName: 'install twine'
