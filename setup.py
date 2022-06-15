@@ -1,8 +1,9 @@
-from distutils.core import setup
+from setuptools import setup, find_packages
 
-setup(name='sione_ftr_pnl',
+setup(name='isone_ftr_pnl',
       version='1.0',
       description='Python Distribution Utilities',
       author='Steve Shao',
-      author_email='stevef.12327@gmail.com'
+      author_email='stevef.12327@gmail.com',
+      packages=find_packages(exclude=['test']),
      )
